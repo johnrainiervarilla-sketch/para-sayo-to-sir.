@@ -1,0 +1,365 @@
+"""
+Java Quiz Challenge
+--------------------
+A fun, interactive 5-question Java quiz built with tkinter.
+After the 5 questions, there's one bonus question with a single
+answer choice. Answering it plays a surprise video.
+
+HOW TO RUN:
+    python quiz_app.py
+
+REQUIREMENTS:
+    Just Python 3 (tkinter ships with most Python installs).
+    No pip installs needed — the video opens in your system's
+    default video player, so there are no extra dependencies.
+
+FILES NEEDED IN THE SAME FOLDER:
+    quiz_app.py       (this file)
+    surprise.mp4      (the video that plays at the end)
+"""
+
+import os
+import sys
+import subprocess
+import tkinter as tk
+from tkinter import ttk
+
+# =========================================================
+# CONFIG
+# =========================================================
+VIDEO_FILENAME = "surprise.mp4"
+
+QUESTIONS = [
+    {
+        "question": "What file extension do Java source files use?",
+        "options": [".java", ".class", ".py", ".js"],
+        "answer": 0,
+    },
+    {
+        "question": "Which keyword is used to define a class in Java?",
+        "options": ["struct", "def", "class", "function"],
+        "answer": 2,
+    },
+    {
+        "question": "What is the entry point method of a Java program?",
+        "options": ["start()", "main()", "init()", "run()"],
+        "answer": 1,
+    },
+    {
+        "question": "Which of these is a primitive data type in Java?",
+        "options": ["String", "ArrayList", "int", "Object"],
+        "answer": 2,
+    },
+    {
+        "question": "What symbol ends a statement in Java?",
+        "options": [",", ".", ":", ";"],
+        "answer": 3,
+    },
+]
+
+SCORE_MESSAGES = [
+    (5, "Perfect score! You're basically a Java compiler. 🖥️"),
+    (4, "So close to perfect — really solid! 💪"),
+    (3, "Not bad at all! Keep practicing. 🙂"),
+    (2, "A little rusty, but you'll get there. ☕"),
+    (0, "Hey, everyone starts somewhere! 🌱"),
+]
+
+# Colors — dark, modern, playful accent
+COL_BG = "#12121a"
+COL_CARD = "#1c1c26"
+COL_TEXT = "#f2f2f7"
+COL_DIM = "#9a9aa8"
+COL_ACCENT = "#7c5cff"
+COL_ACCENT_HOVER = "#9678ff"
+COL_CORRECT = "#4caf6d"
+COL_WRONG = "#e2536b"
+COL_OPTION = "#26263566"
+
+
+def resource_path(filename):
+    """Get the absolute path to a bundled file, next to this script."""
+    base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, filename)
+
+
+def open_video(path):
+    """Open a video file with the system's default media player.
+    Works on Windows, macOS, and Linux without extra dependencies."""
+    try:
+        if sys.platform.startswith("win"):
+            os.startfile(path)  # noqa: this only exists on Windows
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", path])
+        else:
+            subprocess.Popen(["xdg-open", path])
+    except Exception as e:
+        print(f"Couldn't open the video automatically: {e}")
+        print(f"You can open it manually here: {path}")
+
+
+class QuizApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Java Quiz Challenge")
+        self.root.geometry("580x520")
+        self.root.configure(bg=COL_BG)
+        self.root.resizable(False, False)
+
+        self.current_q = 0
+        self.score = 0
+        self.option_buttons = []
+
+        self.container = tk.Frame(self.root, bg=COL_BG)
+        self.container.pack(fill="both", expand=True, padx=30, pady=30)
+
+        self.show_intro()
+
+    # -----------------------------------------------------
+    # SCREEN MANAGEMENT
+    # -----------------------------------------------------
+    def clear_container(self):
+        for widget in self.container.winfo_children():
+            widget.destroy()
+
+    # -----------------------------------------------------
+    # INTRO SCREEN
+    # -----------------------------------------------------
+    def show_intro(self):
+        self.clear_container()
+
+        tk.Label(
+            self.container, text="☕", font=("Segoe UI Emoji", 46),
+            bg=COL_BG, fg=COL_ACCENT
+        ).pack(pady=(20, 10))
+
+        tk.Label(
+            self.container, text="Java Quiz Challenge",
+            font=("Segoe UI", 22, "bold"), bg=COL_BG, fg=COL_TEXT
+        ).pack()
+
+        tk.Label(
+            self.container,
+            text="5 quick Java questions.\nThen... a little surprise. 👀",
+            font=("Segoe UI", 12), bg=COL_BG, fg=COL_DIM, justify="center"
+        ).pack(pady=(10, 30))
+
+        start_btn = self.make_button(
+            self.container, "Let's Go →", self.start_quiz, big=True
+        )
+        start_btn.pack(pady=10)
+
+    # -----------------------------------------------------
+    # BUTTON FACTORY (with hover effect)
+    # -----------------------------------------------------
+    def make_button(self, parent, text, command, big=False, wide=False):
+        font_size = 14 if big else 11
+        pad_y = 16 if big else 12
+        btn = tk.Label(
+            parent, text=text, font=("Segoe UI", font_size, "bold"),
+            bg=COL_ACCENT, fg="white", padx=24, pady=pad_y,
+            cursor="hand2"
+        )
+        if wide:
+            btn.configure(anchor="w")
+        btn.bind("<Button-1>", lambda e: command())
+        btn.bind("<Enter>", lambda e: btn.configure(bg=COL_ACCENT_HOVER))
+        btn.bind("<Leave>", lambda e: btn.configure(bg=COL_ACCENT))
+        return btn
+
+    # -----------------------------------------------------
+    # QUIZ FLOW
+    # -----------------------------------------------------
+    def start_quiz(self):
+        self.current_q = 0
+        self.score = 0
+        self.show_question()
+
+    def show_question(self):
+        self.clear_container()
+        q = QUESTIONS[self.current_q]
+
+        # Progress bar
+        progress_frame = tk.Frame(self.container, bg=COL_BG)
+        progress_frame.pack(fill="x", pady=(0, 20))
+
+        tk.Label(
+            progress_frame, text=f"Question {self.current_q + 1} of {len(QUESTIONS)}",
+            font=("Segoe UI", 10), bg=COL_BG, fg=COL_DIM
+        ).pack(anchor="w")
+
+        style = ttk.Style()
+        style.theme_use("default")
+        style.configure(
+            "Quiz.Horizontal.TProgressbar",
+            troughcolor=COL_CARD, background=COL_ACCENT, thickness=8
+        )
+        pb = ttk.Progressbar(
+            progress_frame, style="Quiz.Horizontal.TProgressbar",
+            length=520, maximum=len(QUESTIONS), value=self.current_q
+        )
+        pb.pack(fill="x", pady=(6, 0))
+
+        # Question text
+        tk.Label(
+            self.container, text=q["question"], font=("Segoe UI", 15, "bold"),
+            bg=COL_BG, fg=COL_TEXT, wraplength=500, justify="left"
+        ).pack(anchor="w", pady=(10, 20))
+
+        # Options
+        self.option_buttons = []
+        for i, opt in enumerate(q["options"]):
+            btn = tk.Label(
+                self.container, text=f"  {opt}", font=("Segoe UI", 12),
+                bg=COL_CARD, fg=COL_TEXT, anchor="w", padx=16, pady=14,
+                cursor="hand2"
+            )
+            btn.pack(fill="x", pady=6)
+            btn.bind("<Button-1>", lambda e, idx=i: self.check_answer(idx))
+            btn.bind("<Enter>", lambda e, b=btn: b.configure(bg="#2a2a3a"))
+            btn.bind("<Leave>", lambda e, b=btn: b.configure(bg=COL_CARD))
+            self.option_buttons.append(btn)
+
+        self.feedback_label = tk.Label(
+            self.container, text="", font=("Segoe UI", 12, "bold"),
+            bg=COL_BG, fg=COL_TEXT
+        )
+        self.feedback_label.pack(pady=(16, 0))
+
+    def check_answer(self, idx):
+        # Disable further clicks
+        for btn in self.option_buttons:
+            btn.unbind("<Button-1>")
+            btn.unbind("<Enter>")
+            btn.unbind("<Leave>")
+
+        q = QUESTIONS[self.current_q]
+        correct_idx = q["answer"]
+
+        if idx == correct_idx:
+            self.score += 1
+            self.option_buttons[idx].configure(bg=COL_CORRECT)
+            self.feedback_label.configure(text="✅ Correct!", fg=COL_CORRECT)
+        else:
+            self.option_buttons[idx].configure(bg=COL_WRONG)
+            self.option_buttons[correct_idx].configure(bg=COL_CORRECT)
+            self.feedback_label.configure(text="❌ Not quite!", fg=COL_WRONG)
+
+        self.root.after(1000, self.next_question)
+
+    def next_question(self):
+        self.current_q += 1
+        if self.current_q < len(QUESTIONS):
+            self.show_question()
+        else:
+            self.show_score_screen()
+
+    # -----------------------------------------------------
+    # SCORE SCREEN
+    # -----------------------------------------------------
+    def show_score_screen(self):
+        self.clear_container()
+
+        message = SCORE_MESSAGES[-1][1]
+        for threshold, msg in SCORE_MESSAGES:
+            if self.score >= threshold:
+                message = msg
+                break
+
+        tk.Label(
+            self.container, text="🎉", font=("Segoe UI Emoji", 46),
+            bg=COL_BG, fg=COL_ACCENT
+        ).pack(pady=(20, 10))
+
+        tk.Label(
+            self.container, text=f"You scored {self.score}/{len(QUESTIONS)}",
+            font=("Segoe UI", 22, "bold"), bg=COL_BG, fg=COL_TEXT
+        ).pack()
+
+        tk.Label(
+            self.container, text=message, font=("Segoe UI", 12),
+            bg=COL_BG, fg=COL_DIM, wraplength=460, justify="center"
+        ).pack(pady=(10, 30))
+
+        tk.Label(
+            self.container, text="There's one more question...",
+            font=("Segoe UI", 11, "italic"), bg=COL_BG, fg=COL_DIM
+        ).pack(pady=(0, 10))
+
+        self.make_button(self.container, "Continue →", self.show_bonus_question, big=True).pack()
+
+    # -----------------------------------------------------
+    # BONUS QUESTION
+    # -----------------------------------------------------
+    def show_bonus_question(self):
+        self.clear_container()
+
+        tk.Label(
+            self.container, text="💛", font=("Segoe UI Emoji", 50),
+            bg=COL_BG, fg=COL_ACCENT
+        ).pack(pady=(30, 15))
+
+        tk.Label(
+            self.container, text="One last question.", font=("Segoe UI", 11),
+            bg=COL_BG, fg=COL_DIM
+        ).pack()
+
+        tk.Label(
+            self.container, text="Do you miss her?", font=("Segoe UI", 22, "bold"),
+            bg=COL_BG, fg=COL_TEXT
+        ).pack(pady=(6, 40))
+
+        yes_btn = self.make_button(self.container, "Yes 💛", self.on_yes_clicked, big=True)
+        yes_btn.pack()
+
+    def on_yes_clicked(self):
+        self.clear_container()
+
+        tk.Label(
+            self.container, text="✨", font=("Segoe UI Emoji", 46),
+            bg=COL_BG, fg=COL_ACCENT
+        ).pack(pady=(40, 15))
+
+        tk.Label(
+            self.container, text="Playing something for you...",
+            font=("Segoe UI", 14), bg=COL_BG, fg=COL_TEXT
+        ).pack()
+
+        self.root.after(1200, self.play_surprise_video)
+
+    def play_surprise_video(self):
+        video_path = resource_path("surprise.mp4")
+
+        self.clear_container()
+
+        if os.path.exists(video_path):
+            open_video(video_path)
+            status_text = "It should be playing now in your video player. 🎬"
+        else:
+            status_text = (
+                f"Couldn't find '{VIDEO_FILENAME}'.\n"
+                f"Make sure it's in the same folder as this script."
+            )
+
+        tk.Label(
+            self.container, text="💛", font=("Segoe UI Emoji", 40),
+            bg=COL_BG, fg=COL_ACCENT
+        ).pack(pady=(40, 15))
+
+        tk.Label(
+            self.container, text=status_text, font=("Segoe UI", 12),
+            bg=COL_BG, fg=COL_DIM, wraplength=440, justify="center"
+        ).pack(pady=(0, 30))
+
+        self.make_button(self.container, "Play It Again", self.play_surprise_video).pack(pady=5)
+        self.make_button(self.container, "Restart Quiz", self.show_intro).pack(pady=5)
+
+
+def main():
+    root = tk.Tk()
+    app = QuizApp(root)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
